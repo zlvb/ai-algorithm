@@ -1,24 +1,26 @@
 # -*- coding: UTF-8 -*-
 # 
 
-import random,time
-from copy import copy
+import random,time,sys,os
+import copy
 
 scene = [
-[0,0,1,0,0],
-[0,1,1,0,1],
-[0,1,0,0,0],
-[0,0,0,1,0],
-[0,0,0,1,0],
-[0,0,0,1,0],
-[0,0,0,1,0],
+[1,1,1,1,1,1,1,1,1,1],
+[1,0,0,1,0,0,0,0,0,1],
+[1,0,1,0,0,1,1,1,1,1],
+[1,0,1,0,0,0,1,0,0,1],
+[1,0,0,0,0,0,1,0,0,1],
+[1,0,0,0,0,0,0,0,0,1],
+[1,0,1,0,1,0,1,0,1,1],
+[1,0,0,0,0,0,0,0,0,1],
+[1,1,1,1,1,1,1,1,1,1]
 ]
 
 width = len(scene[0])
 height = len(scene)
 
-start = (0,0)
-end = (width-1,height-1)
+start = (1,1)
+end = (width-2,height-2)
 
 up = [0,0]
 down = [0,1]
@@ -26,7 +28,7 @@ left = [1,0]
 right = [1,1]
 
 gine_length = width*height*2 # 基因长度
-group_size = gine_length*20 # 种群大小
+group_size = gine_length*2 # 种群大小
 mutate_rate = 0.01 # 变异率
 
 def new_gine():
@@ -51,7 +53,7 @@ def mutate(gine): # 变异
 			gine[i] ^= 1
 			
 def suit(gine): # 评价适应性
-	pos = copy(start)
+	pos = copy.deepcopy(start)
 	
 	ig = 0
 	while ig<gine_length:
@@ -59,17 +61,14 @@ def suit(gine): # 评价适应性
 		g = [gine[ig],gine[ig+1]]
 		ig += 2
 		if g == up:
-			new_pos = [pos[0], pos[1]-1]
-		elif g == down:
-			new_pos = [pos[0], pos[1]+1]
-		elif g == left:
 			new_pos = [pos[0]-1, pos[1]]
-		elif g == right:
+		elif g == down:
 			new_pos = [pos[0]+1, pos[1]]
+		elif g == left:
+			new_pos = [pos[0], pos[1]-1]
+		elif g == right:
+			new_pos = [pos[0], pos[1]+1]
 			
-		if new_pos[0] < 0 or new_pos[0]	> width-1 or new_pos[1] < 0 or new_pos[1] > height - 1:
-			continue
-
 		if scene[new_pos[1]][new_pos[0]] == 1:
 			continue
 		
@@ -77,7 +76,7 @@ def suit(gine): # 评价适应性
 		if new_pos == end:
 			break
 			
-	s = (width-pos[0]-1) + (height-pos[1]-1)
+	s = abs((end[0]-pos[0]) + (end[1]-pos[1]))
 	gine[gine_length] = 1.0 / (s+1)
 		
 	return s
@@ -106,37 +105,56 @@ def cross(p1,p2): # 杂交
 		suit(new_baby1)
 		suit(new_baby2)
 	else:
-		new_baby1 = copy(p1)
-		new_baby2 = copy(p2)
+		new_baby1 = copy.deepcopy(p1)
+		new_baby2 = copy.deepcopy(p2)
 	
 	return new_baby1,new_baby2
+
+def display_scene(pos):
+	for i,v in enumerate(scene):
+		for j,k in enumerate(v):
+			if i == pos[1] and j == pos[0]:
+				sys.stdout.write('*')
+			elif k==0:
+				sys.stdout.write(' ')
+			else:
+				sys.stdout.write(str(k))
+		sys.stdout.write('\n')
 	
 def show_scene(gine):
-	answer = copy(scene)
+	pos = copy.deepcopy(start)
 	ig = 0
+	final_path=[]
 	while ig<gine_length:
 		new_pos = []
 		g = [gine[ig],gine[ig+1]]
 		ig += 2
 		if g == up:
-			new_pos = [pos[0], pos[1]-1]
-		elif g == down:
-			new_pos = [pos[0], pos[1]+1]
-		elif g == left:
 			new_pos = [pos[0]-1, pos[1]]
-		elif g == right:
+		elif g == down:
 			new_pos = [pos[0]+1, pos[1]]
+		elif g == left:
+			new_pos = [pos[0], pos[1]-1]
+		elif g == right:
+			new_pos = [pos[0], pos[1]+1]
 			
-		if new_pos[0] < 0 or new_pos[0]	> width-1 or new_pos[1] < 0 or new_pos[1] > height - 1:
-			continue
-
 		if scene[new_pos[1]][new_pos[0]] == 1:
 			continue
 		
 		pos = new_pos
-		answer[pos[0]][pos[1]] = '*'
-		if new_pos == end:
+		if len(final_path)>=3 and pos == final_path[len(final_path)-2]:
+			del final_path[len(final_path)-1]
+			continue
+		else:
+			final_path.append(new_pos)
+		
+	for p in final_path:
+		display_scene(p)
+		if p == end:
 			break
+		time.sleep(0.2)
+		os.system('cls')
+
 
 def find_result(group):
 	for g in group:
@@ -166,15 +184,19 @@ def epoch(group):
 	return new_group
 			
 def begin():
-	group = []
+	
+	global start
+	global end
 	while True:
-		group = epoch(group)
-		show_group(group)
-		r = find_result(group)
-		if r:
-			return r
-		time.sleep(0.5)
-			
+		group = []
+		while True:
+			group = epoch(group)
+			#show_group(group)
+			r = find_result(group)
+			if r:
+				show_scene(r)
+				break
+		start,end = end,start
 			
 def show_gine(gine):
 	ig = 0
@@ -191,8 +213,6 @@ def show_gine(gine):
 			s += 'right\t'			
 		ig += 2
 	s+=str(gine[gine_length])
-	#print gine_length
-	#print gine
 	print s
 	
 def show_group(group):
