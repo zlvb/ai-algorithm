@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-import random,sys,cPickle,time
+import random,sys,cPickle,time,math
 from datetime import datetime
 #from multiprocessing import Pool
 
@@ -46,7 +46,8 @@ class Group:
             self.units += [Unit()]
         
 def calcValue(c, r):
-    return reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board))
+    v = reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board))
+    return 1.0 / (1.0 + math.pow(math.e, 0-v))
 
 def mating(c1, c2):
     newC = Cell()
@@ -55,8 +56,6 @@ def mating(c1, c2):
     return newC
 
 def hybrid(u1, u2):
-    u1.score = u1.score / 4
-    u2.score = u2.score / 4
     newU = Unit(False)
     newU.cellnet = map(lambda x,y:mating(x,y), u1.cellnet, u2.cellnet)
     return newU
@@ -212,6 +211,8 @@ def train():
         for u in g.units:
             score_sum += u.score        
         babies = []
+        for i in xrange(count):
+            g.units[i].score = g.units[i].score / 4            
         for i in xrange(count/2):
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
