@@ -21,9 +21,9 @@ class Cell:
         for idx,v in enumerate(self.weight):
             if rnd(0,4) == 0:
                 if rnd(0,1) == 1:
-                    self.weight[idx] += 0.1
+                    self.weight[idx] += 0.05
                 else:
-                    self.weight[idx] -= 0.1
+                    self.weight[idx] -= 0.05
       
 class Round:
     def __init__(self):
@@ -111,14 +111,14 @@ def maxout(empty, r, u):
             maxv = v
             pos = p
             e_i = i
-    return pos, e_i
+    empty.pop(e_i)
+    return pos
 
 def OTurn(empty, r, u, display = False):
     if not empty:
         return -1
-    pos, e_i = maxout(empty, r, u)
-    r.board[pos] = O
-    empty.pop(e_i)
+    pos = maxout(empty, r, u)
+    r.board[pos] = O    
     if display:
         printBoard(r.board)
     return pos
@@ -210,6 +210,7 @@ def mycmp(u1,u2):
     if u1.score > u2.score:
         return 1
     return 0
+    
 def train():
     epoch = int(raw_input('epoch:'))
     print('-'*20)
@@ -223,8 +224,8 @@ def train():
         for u in g.units:
             score_sum += u.score   
         sys.stdout.write(' ' * 50 + '\r')   
-        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d Lose: %d\r' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))     
-        if g.units[0].score >= 150 and g.units[0].lose == 0:
+        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d Lose: %d/100\r' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))     
+        if g.units[0].score >= 180 and g.units[0].lose == 0:
             break
         babies = []
         for i in xrange(count):
