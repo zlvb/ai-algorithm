@@ -11,8 +11,9 @@ groupunits = 100
 playtimes = 100
 
 rnd = random.randint
+sysrnd = random.SystemRandom(datetime.now())
 X = 1
-O = 2
+O = -1
 
 class Cell:        
     def __init__(self):        
@@ -47,8 +48,8 @@ class Group:
             self.units += [Unit()]
         
 def calcValue(c, r):
-    v = reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board))
-    return 1.0 / (1.0 + math.pow(math.e, 0-v))
+    return max(0, reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board)))
+    #return 1.0 / (1.0 + math.pow(math.e, 0-v))
 
 def mating(c1, c2):
     newC = Cell()
@@ -59,6 +60,11 @@ def mating(c1, c2):
 def hybrid(u1, u2):
     newU = Unit(False)
     newU.cellnet = map(lambda x,y:mating(x,y), u1.cellnet, u2.cellnet)
+    return newU
+
+def hybrid2(u1, u2):
+    newU = Unit(False)
+    newU.cellnet = u1.cellnet[0:5] + u2.cellnet[5:9]
     return newU
 
 def check3(board, p1, p2, t):
@@ -86,7 +92,7 @@ def checkwin(b, pos, t):
 
 def printBoard(board):
     def R(o):
-        return repr(o).replace('2', 'X').replace('1', 'O').replace('0', '_').replace(',', ' ').replace('(', '|').replace(')', '|')
+        return repr(o).replace('-1', 'X').replace('1', 'O').replace('0', '_').replace(',', ' ').replace('(', '|').replace(')', '|')
     print(R((board[0], board[1], board[2])) + ' 0 1 2')
     print(R((board[3], board[4], board[5])) + ' 3 4 5')
     print(R((board[6], board[7], board[8])) + ' 6 7 8')
@@ -95,7 +101,7 @@ def printBoard(board):
 def XTurn(empty, board):
     if not empty:
         return -1
-    ep = rnd(0, len(empty) - 1)
+    ep = int(sysrnd.random() * 1000) % len(empty)
     pos = empty.pop(ep)
     board[pos] = X
     return pos
@@ -114,9 +120,32 @@ def maxout(empty, r, u):
     empty.pop(e_i)
     return pos
 
-def OTurn(empty, r, u, display = False):
+def pvecheck(empty, r):
+    for pos in empty:
+        r.board[pos] = O
+        if checkwin(r.board, pos, O):
+            empty.remove(pos)
+            return pos
+        r.board[pos] = 0
+    for pos in empty:
+        r.board[pos] = X
+        if checkwin(r.board, pos, X):
+            empty.remove(pos)
+            r.board[pos] = O
+            return pos
+        r.board[pos] = 0
+    return -1
+
+def OTurn(empty, r, u, display = False, pve = False):
     if not empty:
         return -1
+        
+    if pve:
+        pos = pvecheck(empty, r)
+        if pos != -1:
+            printBoard(r.board)
+            return pos
+
     pos = maxout(empty, r, u)
     r.board[pos] = O    
     if display:
@@ -153,14 +182,12 @@ def play(u):
     while True:
         pos = OTurn(empty, r, u)
         if pos == -1:
-            u.score += 1
             break
         if checkwin(r.board, pos, O):
             u.score += 2
             break
         pos = XTurn(empty, r.board)
         if pos == -1:
-            u.score += 1
             break
         if checkwin(r.board, pos, X):
             u.score -= 10
@@ -190,7 +217,7 @@ def pve(u):
             print('YOU WIN   ' * 3)
             time.sleep(2)
             break
-        pos = OTurn(empty, r, u, True)
+        pos = OTurn(empty, r, u, True, True)
         if pos == -1:
             print('DRAW')
             time.sleep(3) 
@@ -232,9 +259,10 @@ def train():
             g.units[i].score = 0       
             g.units[i].lose = 0    
         for i in xrange(10):
-            babies.append(hybrid(g.units[i], g.units[count-1-i]))
-            babies.append(hybrid(g.units[i], g.units[count-1-i]))
-        g.units += babies             
+            babies.append(hybrid(g.units[i], g.units[i+1]))
+            babies.append(hybrid2(g.units[i], g.units[i+1]))
+        g.units += babies        
+        random.seed(datetime.now())     
     fname = 'save_%d' % epoch
     fd = open(fname, 'wb+')
     cPickle.dump(g.units[0], fd)
