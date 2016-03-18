@@ -38,6 +38,7 @@ class Unit:
                 newc.variation()
                 self.cellnet.append(newc)
         self.score = 0
+        self.lose = 0
 
 class Group:
     def __init__(self):
@@ -163,6 +164,7 @@ def play(u):
             break
         if checkwin(r.board, pos, X):
             u.score -= 10
+            u.lose += 1
             break
             
 def evolution(g):
@@ -191,34 +193,47 @@ def pve(u):
         pos = OTurn(empty, r, u, True)
         if pos == -1:
             print('DRAW')
-            time.sleep(3)
+            time.sleep(3) 
             break
         if checkwin(r.board, pos, O):
             print('YOU LOSE   ' * 3)
             time.sleep(2)
             break
 
+def mycmp(u1,u2):
+    if u1.lose < u2.lose:
+        return -1
+    if u1.lose == u2.lose and u1.score < u2.score:
+        return -1
+    if u1.lose > u2.lose:
+        return 1
+    if u1.score > u2.score:
+        return 1
+    return 0
 def train():
     epoch = int(raw_input('epoch:'))
     print('-'*20)
     g = Group()
     for E in xrange(epoch):
         evolution(g)
-        g.units = sorted(g.units, key = lambda x:x.score, reverse=True)
+        g.units = sorted(g.units, cmp = mycmp)
         count = len(g.units) - 20
         g.units = g.units[0:count]
         score_sum = 0
         for u in g.units:
-            score_sum += u.score        
+            score_sum += u.score   
+        sys.stdout.write(' ' * 50 + '\r')   
+        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d Lose: %d\r' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))     
+        if g.units[0].score >= 150 and g.units[0].lose == 0:
+            break
         babies = []
         for i in xrange(count):
-            g.units[i].score = 0           
+            g.units[i].score = 0       
+            g.units[i].lose = 0    
         for i in xrange(10):
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
-        g.units += babies
-        sys.stdout.write(' ' * 40 + '\r')
-        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d\r' % (E*100/epoch, E, score_sum, g.units[0].score))
+        g.units += babies             
     fname = 'save_%d' % epoch
     fd = open(fname, 'wb+')
     cPickle.dump(g.units[0], fd)
