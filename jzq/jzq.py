@@ -205,20 +205,20 @@ def train():
     for E in xrange(epoch):
         evolution(g)
         g.units = sorted(g.units, key = lambda x:x.score, reverse=True)
-        count = int(len(g.units)/2)
+        count = len(g.units) - 20
         g.units = g.units[0:count]
         score_sum = 0
         for u in g.units:
             score_sum += u.score        
         babies = []
         for i in xrange(count):
-            g.units[i].score = g.units[i].score / 4            
-        for i in xrange(count/2):
+            g.units[i].score = 0           
+        for i in xrange(10):
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
             babies.append(hybrid(g.units[i], g.units[count-1-i]))
         g.units += babies
         sys.stdout.write(' ' * 40 + '\r')
-        sys.stdout.write('[%d%%] Epoch:%d Score: %d\r' % (E*100/epoch, E, score_sum))
+        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d\r' % (E*100/epoch, E, score_sum, g.units[0].score))
     fname = 'save_%d' % epoch
     fd = open(fname, 'wb+')
     cPickle.dump(g.units[0], fd)
