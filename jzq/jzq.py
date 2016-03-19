@@ -15,8 +15,8 @@ sysrnd = random.SystemRandom(datetime.now())
 X = 1
 O = -1
 
-class Cell:        
-    def __init__(self):        
+class Cell:
+    def __init__(self):
         self.weight = [0] * 9
     def variation(self):
         for idx,v in enumerate(self.weight):
@@ -25,17 +25,17 @@ class Cell:
                     self.weight[idx] += 0.05
                 else:
                     self.weight[idx] -= 0.05
-      
+
 class Round:
     def __init__(self):
         self.board = [0] * 9
-        
+
 class Unit:
     def __init__(self, init = True):
         self.cellnet = []
         if init:
             for i in xrange(9):
-                newc = Cell()            
+                newc = Cell()
                 newc.variation()
                 self.cellnet.append(newc)
         self.score = 0
@@ -46,9 +46,10 @@ class Group:
         self.units = []
         for i in xrange(groupunits):
             self.units += [Unit()]
-        
+
 def calcValue(c, r):
-    return max(0, reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board)))
+    #return max(0, reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board)))
+    return reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board))
     #return 1.0 / (1.0 + math.pow(math.e, 0-v))
 
 def mating(c1, c2):
@@ -69,7 +70,7 @@ def hybrid2(u1, u2):
 
 def check3(board, p1, p2, t):
     return board[p1] == board[p2] and board[p2] == t
-        
+
 
 wintable = {}
 wintable[0] = ((1,2), (3,6), (4,8))
@@ -88,7 +89,7 @@ def checkwin(b, pos, t):
     for pair in checks:
         if check3(b, pair[0], pair[1], t):
             return True
-    return False                                                        
+    return False
 
 def printBoard(board):
     def R(o):
@@ -102,6 +103,7 @@ def XTurn(empty, board):
     if not empty:
         return -1
     ep = int(sysrnd.random() * 1000) % len(empty)
+    #ep = rnd(0, len(empty)-1)
     pos = empty.pop(ep)
     board[pos] = X
     return pos
@@ -139,7 +141,7 @@ def pvecheck(empty, r):
 def OTurn(empty, r, u, display = False, pve = False):
     if not empty:
         return -1
-        
+
     if pve:
         pos = pvecheck(empty, r)
         if pos != -1:
@@ -147,7 +149,7 @@ def OTurn(empty, r, u, display = False, pve = False):
             return pos
 
     pos = maxout(empty, r, u)
-    r.board[pos] = O    
+    r.board[pos] = O
     if display:
         printBoard(r.board)
     return pos
@@ -171,14 +173,14 @@ def ManTurn(empty, board):
     board[pos] = X
     printBoard(board)
     return pos
-            
+
 def play(u):
     r = Round()
     #printBoard(r.board)
     empty = [0,1,2,3,4,5,6,7,8]
     if rnd(0,1) == 0:
         XTurn(empty, r.board)
-     
+
     while True:
         pos = OTurn(empty, r, u)
         if pos == -1:
@@ -193,7 +195,7 @@ def play(u):
             u.score -= 10
             u.lose += 1
             break
-            
+
 def evolution(g):
     for u in g.units:
         for i in xrange(playtimes):
@@ -206,7 +208,7 @@ def pve(u):
     empty = [0,1,2,3,4,5,6,7,8]
     if rnd(0,1) == 0:
         OTurn(empty, r, u, True)
-     
+
     while True:
         pos = ManTurn(empty, r.board)
         if pos == -1:
@@ -220,7 +222,7 @@ def pve(u):
         pos = OTurn(empty, r, u, True, True)
         if pos == -1:
             print('DRAW')
-            time.sleep(3) 
+            time.sleep(3)
             break
         if checkwin(r.board, pos, O):
             print('YOU LOSE   ' * 3)
@@ -237,32 +239,38 @@ def mycmp(u1,u2):
     if u1.score > u2.score:
         return 1
     return 0
-    
+
 def train():
     epoch = int(raw_input('epoch:'))
     print('-'*20)
     g = Group()
+    sortmode = 0
     for E in xrange(epoch):
         evolution(g)
-        g.units = sorted(g.units, cmp = mycmp)
+        if sortmode == 1:
+            g.units = sorted(g.units, cmp = mycmp)
+        else:
+            g.units = sorted(g.units, key=lambda x:x.score, reverse=True)
         count = len(g.units) - 20
         g.units = g.units[0:count]
         score_sum = 0
         for u in g.units:
-            score_sum += u.score   
-        sys.stdout.write(' ' * 50 + '\r')   
-        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d Lose: %d/100\r' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))     
+            score_sum += u.score
+        sys.stdout.write(' ' * 50 + '\r')
+        sys.stdout.write('[%d%%] Epoch:%d Score: %d Top: %d Lose: %d/100\r' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))
         if g.units[0].score >= 180 and g.units[0].lose == 0:
             break
         babies = []
         for i in xrange(count):
-            g.units[i].score = 0       
-            g.units[i].lose = 0    
+            g.units[i].score = 0
+            g.units[i].lose = 0
         for i in xrange(10):
             babies.append(hybrid(g.units[i], g.units[i+1]))
-            babies.append(hybrid2(g.units[i], g.units[i+1]))
-        g.units += babies        
-        random.seed(datetime.now())     
+            babies.append(hybrid(g.units[i], g.units[i+1]))
+        g.units += babies
+        if g.units[0].lose == 0:
+            sortmode = 1
+        #random.seed(datetime.now())
     fname = 'save_%d' % epoch
     fd = open(fname, 'wb+')
     cPickle.dump(g.units[0], fd)
@@ -271,7 +279,7 @@ def train():
 
 def playpve():
     try:
-        fname = raw_input('filename:')            
+        fname = raw_input('filename:')
         fd = open(fname)
         u = cPickle.load(fd)
         fd.close()
@@ -281,7 +289,7 @@ def playpve():
     while True:
         pve(u)
 
-def menu():    
+def menu():
     while True:
         r = raw_input('[1] Train\n[2] Play\n[3] Exit\n')
         if r == '1':
@@ -290,6 +298,6 @@ def menu():
             playpve()
         elif r == '3':
             quit()
-        
+
 if __name__ == '__main__':
     menu()
