@@ -26,9 +26,12 @@ class Cell:
                 else:
                     self.weight[idx] -= 0.05
 
+roudweight = (1,10,100,1000,10000,0.1,0.01,0.001,0.0001)
 class Round:
     def __init__(self):
         self.board = [0] * 9
+    def feature(self):
+        return reduce(lambda x,y:x+y, map(lambda x,y:x*y, self.board, roudweight))
 
 class Unit:
     def __init__(self, init = True):
@@ -38,14 +41,37 @@ class Unit:
                 newc = Cell()
                 newc.variation()
                 self.cellnet.append(newc)
-        self.score = 0
         self.lose = 0
+        self.win = 0
+
+def mycmplose(u1,u2):
+    if u1.lose < u2.lose:
+        return -1
+    if u1.lose > u2.lose:
+        return 1
+    if u1.win > u2.win:
+        return -1
+    if u1.win < u2.win:
+        return 1
+    return 0
+
+def mycmpwin(u1,u2):
+    if u1.win > u2.win:
+        return -1
+    if u1.win < u2.win:
+        return 1
+    if u1.lose < u2.lose:
+        return -1
+    if u1.lose > u2.lose:
+        return 1
+    return 0
 
 class Group:
     def __init__(self):
-        self.units = []
+        self.uarr = [[],[]]
         for i in xrange(groupunits):
-            self.units += [Unit()]
+            self.uarr[0] += [Unit()]
+            self.uarr[1] += [Unit()]
 
 def calcValue(c, r):
     #return max(0, reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board)))
@@ -178,11 +204,11 @@ def ManTurn(empty, board):
     printBoard(board)
     return pos
 
-def play(u):
+def play(u, idx):
     r = Round()
     #printBoard(r.board)
     empty = [0,1,2,3,4,5,6,7,8]
-    if rnd(0,1) == 0:
+    if idx == 1:
         XTurn(empty, r.board)
 
     while True:
@@ -190,28 +216,30 @@ def play(u):
         if pos == -1:
             break
         if checkwin(r.board, pos, O):
-            u.score += 2
+            u.win += 1
             break
         pos = XTurn(empty, r.board)
         if pos == -1:
             break
         if checkwin(r.board, pos, X):
-            u.score -= 10
             u.lose += 1
             break
 
-def evolution(g):
-    for u in g.units:
+def evolution(units, idx):
+    for u in units:
         for i in xrange(playtimes):
-            play(u)
+            play(u, idx)
 
-def pve(u):
+def pve(g):
     print('\n---=== START ===---')
     r = Round()
     printBoard(r.board)
     empty = [0,1,2,3,4,5,6,7,8]
     if rnd(0,1) == 0:
+        u = g.uarr[0][0]
         OTurn(empty, r, u, True)
+    else:
+        u = g.uarr[1][0]
 
     while True:
         pos = ManTurn(empty, r.board)
@@ -233,73 +261,80 @@ def pve(u):
             time.sleep(2)
             break
 
-def mycmp(u1,u2):
-    if u1.lose < u2.lose:
-        return -1
-    if u1.lose == u2.lose and u1.score < u2.score:
-        return -1
-    if u1.lose > u2.lose:
-        return 1
-    if u1.score > u2.score:
-        return 1
-    return 0
-
-def train():
+def train(g):
     epoch = int(raw_input('epoch:'))
     print('-'*20)
-    g = Group()
-    sortmode = 0
-    for E in xrange(epoch):
-        evolution(g)
-        if sortmode == 1:
-            g.units = sorted(g.units, cmp = mycmp)
-        else:
-            g.units = sorted(g.units, key=lambda x:x.score, reverse=True)
-        count = len(g.units) / 2
-        g.units = g.units[0:count]
-        score_sum = 0
-        for u in g.units:
-            score_sum += u.score
-        sys.stdout.write('[ %d%% ] Epoch:%d Score: %d Top: %d Lose: %d/100\n' % (E*100/epoch, E, score_sum, g.units[0].score, g.units[0].lose))
-        if g.units[0].score >= 180 and g.units[0].lose == 0:
-            break
-        babies = []
-        for i in xrange(count):
-            g.units[i].score = 0
-            g.units[i].lose = 0
-        for i in xrange(count / 2):
-            babies.append(hybrid(g.units[i], g.units[i+1]))
-            babies.append(hybrid(g.units[i], g.units[i+1]))
-        g.units += babies
-        if g.units[0].lose == 0:
-            sortmode = 1
-        #random.seed(datetime.now())
+    train_step = [0,0]
+    try:
+        for E in xrange(epoch):
+                dotrain(epoch, E, g, train_step, 0)
+                dotrain(epoch, E, g, train_step, 1)
+    except KeyboardInterrupt:
+        print('stop')
     fname = 'save_%d' % epoch
     fd = open(fname, 'wb+')
-    cPickle.dump(g.units[0], fd)
+    cPickle.dump(g, fd)
     fd.close()
     print('train result file: %s saved' % fname)
+
+def dotrain(epoch, E, g, train_step, idx):
+    if train_step[idx] == 2:
+        return
+    mycmp = (mycmpwin, mycmplose)
+    units = g.uarr[idx]
+    evolution(units, idx)
+    units = sorted(units, cmp = mycmp[idx])
+    #if units[0].lose == units[1].lose == units[2].lose == 0:
+    #    train_step[idx] = 2
+    #    return
+    count = len(units) / 2
+    units = units[0:count]
+    sys.stdout.write('[ %d%% ] %d | Epoch:%d Top | Win: %d Lose: %d/100\n' % (E*100/epoch, idx, E, units[0].win, units[0].lose))
+    babies = []
+    for i in xrange(count):
+        units[i].win = 0
+        units[i].lose = 0
+    for i in xrange(count / 2):
+        babies.append(hybrid(units[i], units[i+1]))
+        babies.append(hybrid(units[i], units[i+1]))
+    units += babies
+    g.uarr[idx] = units
 
 def playpve():
     try:
         fname = raw_input('filename:')
         fd = open(fname)
-        u = cPickle.load(fd)
+        g = cPickle.load(fd)
         fd.close()
+        print(g)
     except:
         print('input error. Exit')
         quit()
     while True:
-        pve(u)
+        pve(g)
+
+def resume():
+    try:
+        fname = raw_input('filename:')
+        fd = open(fname)
+        g = cPickle.load(fd)
+        fd.close()
+        print(g)
+    except:
+        print('input error. Exit')
+        quit()
+    train(g)
 
 def menu():
     while True:
-        r = raw_input('[1] Train\n[2] Play\n[3] Exit\n')
+        r = raw_input('[1] Train\n[2] Play\n[3] Resume\n[4] Exit\n')
         if r == '1':
-            train()
+            train(Group())
         elif r == '2':
             playpve()
         elif r == '3':
+            resume()
+        elif r == '4':
             quit()
 
 if __name__ == '__main__':
