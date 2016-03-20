@@ -17,7 +17,7 @@ O = 2
 
 class Cell:
     def __init__(self):
-        self.weight = [0] * 9
+        self.weight = [0] * 2
     def variation(self):
         for idx,v in enumerate(self.weight):
             if rnd(0,4) == 0:
