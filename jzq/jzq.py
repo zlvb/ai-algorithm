@@ -20,18 +20,15 @@ class Cell:
         self.weight = [0] * 9
     def variation(self):
         for idx,v in enumerate(self.weight):
-            if rnd(0,4) == 0:
+            if rnd(0,2) == 0:
                 if rnd(0,1) == 1:
                     self.weight[idx] += 0.05
                 else:
                     self.weight[idx] -= 0.05
 
-roudweight = (1,10,100,1000,10000,0.1,0.01,0.001,0.0001)
 class Round:
     def __init__(self):
         self.board = [0] * 9
-    def feature(self):
-        return reduce(lambda x,y:x+y, map(lambda x,y:x*y, self.board, roudweight))
 
 class Unit:
     def __init__(self, init = True):
@@ -43,7 +40,7 @@ class Unit:
                 self.cellnet.append(newc)
         self.lose = 0
         self.win = 0
-
+        
 def mycmplose(u1,u2):
     if u1.lose < u2.lose:
         return -1
@@ -73,9 +70,20 @@ class Group:
             self.uarr[0] += [Unit()]
             self.uarr[1] += [Unit()]
 
-def calcValue(c, r):
+def calcValue(c, r, R = False):
+    board = r.board
+    if R:
+        board = []
+        for v in r.board:
+            if v == O:
+                board.append(X)
+            elif v == X:
+                board.append(O)
+            else:
+                board.append(0)
+        
     #return max(0, reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board)))
-    return reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, r.board))
+    return reduce(lambda x,y:x+y, map(lambda x,y:x*y, c.weight, board))
     #return 1.0 / (1.0 + math.pow(math.e, 0-v))
 
 def mating(c1, c2):
@@ -137,13 +145,26 @@ def XTurn(empty, board):
     board[pos] = X
     return pos
 
-def maxout(empty, r, u):
+def XOTurn(empty, r, u):
+    if not empty:
+        return -1
+
+    pos = pvecheck(empty, r.board, X, O)
+    if pos != -1:
+        return pos
+
+    pos = maxout(empty, r, u, True)
+    #empty.remove(pos)
+    r.board[pos] = X
+    return pos
+
+def maxout(empty, r, u, R = False):
     pos = -1
     e_i = -1
     maxv = -999
     for i,p in enumerate(empty):
         c = u.cellnet[p]
-        v = calcValue(c, r)
+        v = calcValue(c, r, R)
         if v > maxv:
             maxv = v
             pos = p
@@ -151,6 +172,7 @@ def maxout(empty, r, u):
     empty.pop(e_i)
     return pos
 
+dfn = ((8, (0,2,6,8), 4), (6, (1,3,5,7)))
 def pvecheck(empty, board, M=O, E=X):
     for pos in empty:
         board[pos] = M
@@ -158,6 +180,7 @@ def pvecheck(empty, board, M=O, E=X):
             empty.remove(pos)
             return pos
         board[pos] = 0
+        
     for pos in empty:
         board[pos] = E
         if checkwin(board, pos, E):
@@ -165,6 +188,21 @@ def pvecheck(empty, board, M=O, E=X):
             board[pos] = M
             return pos
         board[pos] = 0
+        
+    if len(empty) == dfn[0][0]:
+        for p in dfn[0][1]:
+            if board[p] == E:
+                board[dfn[0][2]] = M
+                empty.remove(dfn[0][2])
+                return dfn[0][2]
+                
+    elif len(empty) == dfn[1][0]:
+        for p in dfn[1][1]:
+            if p in empty:
+                board[p] = M
+                empty.remove(p)
+                return p
+        
     return -1
 
 def OTurn(empty, r, u, display = False, pve = False):
@@ -204,31 +242,45 @@ def ManTurn(empty, board):
     printBoard(board)
     return pos
 
-def play(u, idx):
+def play(u, idx, E = None):
     r = Round()
     #printBoard(r.board)
     empty = [0,1,2,3,4,5,6,7,8]
     if idx == 1:
-        XTurn(empty, r.board)
+        if E:
+            XOTurn(empty, r, E)
+        else:
+            XTurn(empty, r.board)
 
     while True:
-        pos = OTurn(empty, r, u)
+        pos = OTurn(empty, r, u, False, idx == 1)
         if pos == -1:
             break
         if checkwin(r.board, pos, O):
             u.win += 1
             break
-        pos = XTurn(empty, r.board)
+        if E:
+            pos = XOTurn(empty, r, E)
+        else:
+            pos = XTurn(empty, r.board)
         if pos == -1:
             break
         if checkwin(r.board, pos, X):
             u.lose += 1
             break
 
-def evolution(units, idx):
-    for u in units:
-        for i in xrange(playtimes):
-            play(u, idx)
+def evolution(uarr, idx):
+    if idx == 1:
+        units = uarr[1]        
+        for u in units:
+            for i in xrange(playtimes):
+                Eu = uarr[0][0]
+                play(u, idx, Eu)
+    else:
+        units = uarr[idx]
+        for u in units:
+            for i in xrange(playtimes):
+                play(u, idx)
 
 def pve(g):
     print('\n---=== START ===---')
@@ -265,9 +317,11 @@ def train(g):
     epoch = int(raw_input('epoch:'))
     print('-'*20)
     train_step = [0,0]
+    #for u in g.uarr[1]:
+    #    u.weight = [random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random()]
     try:
         for E in xrange(epoch):
-                dotrain(epoch, E, g, train_step, 0)
+                #dotrain(epoch, E, g, train_step, 0)
                 dotrain(epoch, E, g, train_step, 1)
     except KeyboardInterrupt:
         print('stop')
@@ -282,7 +336,7 @@ def dotrain(epoch, E, g, train_step, idx):
         return
     mycmp = (mycmpwin, mycmplose)
     units = g.uarr[idx]
-    evolution(units, idx)
+    evolution(g.uarr, idx)
     units = sorted(units, cmp = mycmp[idx])
     #if units[0].lose == units[1].lose == units[2].lose == 0:
     #    train_step[idx] = 2
