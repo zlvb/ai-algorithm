@@ -321,7 +321,7 @@ def train(g):
     #    u.weight = [random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random()]
     try:
         for E in xrange(epoch):
-                #dotrain(epoch, E, g, train_step, 0)
+                dotrain(epoch, E, g, train_step, 0)
                 dotrain(epoch, E, g, train_step, 1)
     except KeyboardInterrupt:
         print('stop')
