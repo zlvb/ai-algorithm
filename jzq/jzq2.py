@@ -8,16 +8,21 @@ random.seed(datetime.now())
 
 def initweightlayer(n):
     weightlayer = []
-    for i in xrange(n*9):
+    for i in xrange(n*81):
         weightlayer.append(random.random())
     return weightlayer
 
 
 def runnetwork(i, w, n):
     for x in xrange(n-1):
-        ws = x * 9
-        print ('i[x]', i[x])
-        i.(reduce(lambda x,y:x+y, map(lambda x,y:x*y, i[x], w[ws:ws+9])))
+        ws = x * 81
+        i.append([])
+        #print ('i[%d]'%x, i[x])
+        for y in xrange(9):
+            #print(x,y,ws)
+            v = reduce(lambda x,y:x+y, map(lambda x,y:x*y, i[x], w[ws:ws+9]))
+            i[x+1].append(v)
+            ws += 9
 
 def printBoard(board):
     def R(o):
@@ -34,14 +39,17 @@ if __name__ == '__main__':
 
     inputlayer = [[0,0,0,0,0,0,0,0,0,], ]
     while True:
+        empty
         runnetwork(inputlayer, weight, layernum)
         output = inputlayer[layernum - 1]
-        output.sort(reserve = True)
+        output.sort()
         inputlayer = inputlayer[0:1]
         for idx, v in enumerate(output):
             if inputlayer[0][idx] == 0:
-                inputlayer[0][idx] = v
+                inputlayer[0][idx] = 2
                 break
         else:
             break
+
+        for
         printBoard(inputlayer[0])
